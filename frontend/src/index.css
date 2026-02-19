@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* ========== GLOBAL FONT ========== */
+* {
+  font-family: "Outfit", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  box-sizing: border-box;
+}
+
+/* ========== LIGHT MODE VARIABLES ========== */
+:root {
+  --bg-color: #f9fafb;
+  --sidebar-bg: #ffffff;
+  --card-bg: #f3f4f6;
+  --text-color: #111827;
+  --primary-color: #7c3aed;
+  --hover-color: #ede9fe;
+
+  --chat-line-height: 1.7;
+  --chat-font-size: 15px;
+}
+
+/* ========== DARK MODE VARIABLES ========== */
+.dark {
+  --bg-color: #0f172a;
+  --sidebar-bg: #111827;
+  --card-bg: #1f2937;
+  --text-color: #f3f4f6;
+  --primary-color: #9333ea;
+  --hover-color: #2a1e40;
+}
+
+/* ========== BODY ========== */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  line-height: var(--chat-line-height);
+  font-size: var(--chat-font-size);
+}
+
+/* ========== SMOOTH SCROLL ========== */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ========== SCROLLBAR (ChatGPT Style Slim) ========== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ========== MARKDOWN STYLING (Professional Look) ========== */
+
+.markdown-content {
+  line-height: 1.75;
+  font-size: 15px;
+}
+
+.markdown-content p {
+  margin-bottom: 12px;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  font-weight: 600;
+  margin: 16px 0 10px;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 20px;
+  margin-bottom: 12px;
+}
+
+.markdown-content li {
+  margin-bottom: 6px;
+}
+
+.markdown-content code {
+  background: rgba(124, 58, 237, 0.1);
+  color: var(--primary-color);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.markdown-content pre {
+  background: #111827;
+  color: #f9fafb;
+  padding: 14px;
+  border-radius: 12px;
+  overflow-x: auto;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+/* Dark mode code block */
+.dark .markdown-content pre {
+  background: #0b1220;
+}
+
+/* ========== RESET FOR NON MARKDOWN AREAS ========== */
+.reset-tw :not(pre):not(code) {
+  all: revert;
+}
