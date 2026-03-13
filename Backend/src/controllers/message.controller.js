@@ -44,14 +44,16 @@ const textMessage = async (req, res) => {
     if (!userDoc) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
-    if ((userDoc.credits || 0) < 90) {
+    if ((userDoc.credits || 0) < 1) {
       return res.status(402).json({ success: false, message: "Not enough credits" });
     }
 
     // 5️⃣ Prepare messages for AI
     const systemMessage = {
       role: "system",
-      content: "You are a helpful assistant.",
+      content: `You are a jarvis assistant who gives helpful information.
+        You have access to:
+        1. WebSearch({searchQuery}) - for realtime web information.`,
     };
 
     const messagesForAI = [
@@ -71,7 +73,7 @@ const textMessage = async (req, res) => {
     await chat.save();
 
     // 8️⃣ Decrease user credits after successful response
-    const updatedUser = await User.findByIdAndUpdate(userId, { $inc: { credits: -1 } }, { new: true });
+    const updatedUser = await User.findByIdAndUpdate(userId, { $inc: { credits: -1 } }, { after: true });
 
     return res.status(200).json({ success: true, message: assistantText, chat, user: updatedUser });
   } catch (error) {

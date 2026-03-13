@@ -8,7 +8,6 @@ const createdChat = async (req, res) => {
 
     const chat = await Chat.create({
       userId,
-      
       name: "New Chat",
       messages: [],
     });
