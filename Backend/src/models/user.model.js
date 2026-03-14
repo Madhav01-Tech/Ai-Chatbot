@@ -15,9 +15,19 @@ const userSchema = new Schema({
         type:String,
         required:true,
     },
+    isVerified:{
+        type:Boolean,
+        default:false,
+    },
+    otp:{
+        type:String,
+    },
+    otpExpires:{
+        type:Date,
+    },
     credits:{
         type:Number,
-        default:7,
+        default:100,
     }
   
 });
