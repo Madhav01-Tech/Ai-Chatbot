@@ -145,7 +145,7 @@ await chat.save();
 const updatedUser = await User.findByIdAndUpdate(
   userId,
   { $inc: { credits: -2 } },
-  { new: true }
+  { after: true }
 );
 
 return res.status(200).json({

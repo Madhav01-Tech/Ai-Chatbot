@@ -23,6 +23,7 @@ async function webSearch(SearchQuery) {
 
   const tvly = tavily({ apiKey: tvlyApiKey });
   const response = await tvly.search(SearchQuery);
+  console.log("Web search results:", response);
 
   return response.results
     ?.map((result) => result.content)
@@ -75,7 +76,7 @@ export async function getAssistantMessage(messages = []) {
     while (true) {
       const response = await chatClient.chat.completions.create({
         model: "openai/gpt-oss-20b",
-        temperature: 0.7,
+        temperature: 0.5,
         messages,
         tools,
         tool_choice: "auto",
