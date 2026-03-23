@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/App.Context";
 import { assets } from "../assets/assets";
+import toast from "react-hot-toast";
 
 /*
   Simplified Sidebar
@@ -11,7 +12,7 @@ import { assets } from "../assets/assets";
   - Mobile open/close uses `assets.menu_icon` and `assets.close_icon`.
 */
 const Sidebar = ({ open: propOpen, onOpen, onClose }) => {
-  const { user, chats, selectedChat, setSelectedChat, setChats, theme, setTheme } = useAppContext();
+  const { user, chats, selectedChat, setSelectedChat, createNewChat, deleteChat, theme, setTheme, logout } = useAppContext();
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
@@ -20,6 +21,13 @@ const Sidebar = ({ open: propOpen, onOpen, onClose }) => {
   useEffect(() => {
     if (typeof propOpen === "boolean") setIsOpen(propOpen);
   }, [propOpen]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user && !localStorage.getItem("authToken")) {
+      navigate("/login");
+    }
+  }, [user, navigate]);
 
   const handleOpen = () => {
     if (typeof propOpen === "boolean") onOpen && onOpen();
@@ -31,35 +39,60 @@ const Sidebar = ({ open: propOpen, onOpen, onClose }) => {
     else setIsOpen(false);
   };
 
-  // Create a new chat and open it
-  const handleNewChat = () => {
-    const newChat = {
-      _id: Date.now().toString(),
-      userId: user?._id || "local",
-      name: "New Chat",
-      messages: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setChats && setChats((prev = []) => [newChat, ...prev]);
-    setSelectedChat && setSelectedChat(newChat);
-    navigate("/chat");
-    handleClose();
+  // Create a new chat using API
+  const handleNewChat = async () => {
+    try {
+      await createNewChat();
+      navigate("/chat");
+      handleClose();
+    } catch (error) {
+      console.error("Failed to create chat:", error);
+    }
   };
 
   // Delete a chat; stop event propagation so it doesn't also select it
-  const handleDeleteChat = (chatId, e) => {
+  const handleDeleteChat = async (chatId, e) => {
     e.stopPropagation();
-    setChats && setChats((prev = []) => {
-      const updated = prev.filter((c) => c._id !== chatId);
-      // if deleted chat was selected, pick the first one or null
-      if (selectedChat?._id === chatId) {
-        const next = updated[0] || null;
-        setSelectedChat && setSelectedChat(next);
-        if (next) navigate("/chat");
-        else navigate("/");
-      }
-      return updated;
+    
+    // Show confirmation toast
+    toast((t) => (
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <p className="font-medium">Delete this chat?</p>
+          <p className="text-xs opacity-70">This action cannot be undone.</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+            }}
+            className="px-3 py-1 rounded bg-gray-300 dark:bg-gray-600 text-sm hover:opacity-80"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await deleteChat(chatId);
+                if (selectedChat?._id === chatId) {
+                  navigate("/");
+                }
+                toast.dismiss(t.id);
+                toast.success("Chat deleted");
+              } catch (error) {
+                console.error("Failed to delete chat:", error);
+                toast.error("Failed to delete chat");
+              }
+            }}
+            className="px-3 py-1 rounded bg-red-500 dark:bg-red-600 text-white text-sm hover:opacity-80"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: Infinity, // Keep toast open until user acts
+      position: "center",
     });
   };
 
@@ -148,77 +181,96 @@ const Sidebar = ({ open: propOpen, onOpen, onClose }) => {
 
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto pr-1">
-  {filteredChats.length > 0 && (
-    <p className="text-sm font-medium mb-4 text-gray-500 dark:text-gray-400 tracking-wide">
-      Recent Chats
-    </p>
-  )}
-
-  {filteredChats.map((chat) => {
-    const firstMessage =
-      chat.messages && chat.messages.length > 0
-        ? chat.messages[0]
-        : null;
-
-    const isActive = selectedChat?._id === chat._id;
-
-    return (
-      <div
-        key={chat._id}
-        onClick={() => {
-          setSelectedChat && setSelectedChat(chat);
-          navigate("/chat");
-          handleClose();
-        }}
-        className={`
-          p-3 rounded-xl mb-3 cursor-pointer
-          transition-all duration-200
-          ${isActive
-            ? "bg-[var(--primary-color)] text-black dark:text-white border border-gray-300 dark:border-white shadow-md"
-            : "bg-[var(--primary-color)] text-black dark:text-white hover:scale-[1.02]"
-          }
-        `}
-      >
-        <div className="flex items-center justify-between gap-3">
-          
-          {/* Chat Info */}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">
-              {firstMessage
-                ? firstMessage.content.slice(0, 35)
-                : chat.name}
+          {filteredChats.length > 0 && (
+            <p className="text-sm font-medium mb-4 text-gray-500 dark:text-gray-400 tracking-wide">
+              Recent Chats
             </p>
+          )}
 
-            <p className="text-xs opacity-70 mt-1 truncate">
-              {firstMessage
-                ? new Date(
-                    firstMessage.createdAt || firstMessage.timestamp
-                  ).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "No messages"}
-            </p>
-          </div>
+          {filteredChats.length === 0 && chats.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                No chats yet
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                Create a new chat to get started!
+              </p>
+            </div>
+          )}
 
-          {/* Delete Button */}
-          <button
-            onClick={(e) => handleDeleteChat(chat._id, e)}
-            aria-label="Delete chat"
-            className="p-1.5 rounded-md transition-colors duration-200 hover:bg-red-100 dark:hover:bg-red-900"
-          >
-            <img
-              src={assets.bin_icon}
-              alt="delete"
-              className="w-4 h-4 opacity-80"
-            />
-          </button>
+          {filteredChats.length === 0 && chats.length > 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                No chats match "{search}"
+              </p>
+            </div>
+          )}
 
+          {filteredChats.map((chat) => {
+            const firstMessage =
+              chat.messages && chat.messages.length > 0
+                ? chat.messages[chat.messages.length - 1]
+                : null;
+
+            const isActive = selectedChat?._id === chat._id;
+
+            return (
+              <div
+                key={chat._id}
+                onClick={() => {
+                  setSelectedChat && setSelectedChat(chat);
+                  navigate("/chat");
+                  handleClose();
+                }}
+                className={`
+                  p-3 rounded-xl mb-3 cursor-pointer
+                  transition-all duration-200
+                  ${isActive
+                    ? "bg-[var(--primary-color)] text-black dark:text-white border border-gray-300 dark:border-white shadow-md"
+                    : "bg-[var(--primary-color)] text-black dark:text-white hover:scale-[1.02]"
+                  }
+                `}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  
+                  {/* Chat Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">
+                      {firstMessage
+                        ? firstMessage.content.slice(0, 35)
+                        : chat.name}
+                    </p>
+
+                    <p className="text-xs opacity-70 mt-1 truncate">
+                      {firstMessage
+                        ? new Date(
+                            firstMessage.timeStamp || chat.updatedAt
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : new Date(chat.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  {/* Delete Button */}
+                  <button
+                    onClick={(e) => handleDeleteChat(chat._id, e)}
+                    aria-label="Delete chat"
+                    className="p-1.5 rounded-md transition-colors duration-200 hover:bg-red-100 dark:hover:bg-red-900"
+                  >
+                    <img
+                      src={assets.bin_icon}
+                      alt="delete"
+                      className="w-4 h-4 opacity-80"
+                    />
+                  </button>
+
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
-    );
-  })}
-</div>
 
 
         {/* Community */}
@@ -251,23 +303,36 @@ const Sidebar = ({ open: propOpen, onOpen, onClose }) => {
           <p className="text-sm">Credits: {user?.credits}</p>
         </div>
 
-        {/* User Info */}
-        <div
-          onClick={() => {
-            navigate("/user");
-            handleClose();
-          }}
-          className="flex items-center justify-between gap-3 mt-3 p-2 rounded-xl
-          bg-[var(--primary-color)]
-          text-black dark:text-white
-          hover:opacity-90 transition-all duration-300 shadow-md cursor-pointer"
-        >
-          <div className="flex gap-1">
+        {/* User Controls (profile + logout) */}
+        <div className="mt-3 space-y-2">
+          {/* Profile link */}
+          <div
+            onClick={() => {
+              navigate("/profile");
+              handleClose();
+            }}
+            className="flex items-center gap-3 p-2 rounded-xl
+            bg-[var(--primary-color)]
+            text-black dark:text-white
+            hover:opacity-90 transition-all duration-300 shadow-md cursor-pointer"
+          >
             <img src={assets.user_icon} className="w-5 opacity-80" />
             <p className="text-sm">User Profile</p>
           </div>
-          <div>
+
+          {/* Logout button */}
+          <div
+            onClick={() => {
+              logout();
+              handleClose();
+            }}
+            className="flex items-center gap-3 p-2 rounded-xl
+            bg-[var(--primary-color)]
+            text-black dark:text-white
+            hover:opacity-90 transition-all duration-300 shadow-md cursor-pointer"
+          >
             <img src={assets.logout_icon} className="w-5 opacity-80" />
+            <p className="text-sm">Logout</p>
           </div>
         </div>
 
