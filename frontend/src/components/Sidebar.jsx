@@ -6,21 +6,14 @@ import toast from "react-hot-toast";
 
 /*
   Simplified Sidebar
-  - Uses internal state by default.
-  - If parent passes an `open` prop (boolean), Sidebar will mirror it
-    and call `onOpen`/`onClose` callbacks when the user toggles.
+  - Uses internal state for mobile open/close.
   - Mobile open/close uses `assets.menu_icon` and `assets.close_icon`.
 */
-const Sidebar = ({ open: propOpen, onOpen, onClose }) => {
+const Sidebar = () => {
   const { user, chats, selectedChat, setSelectedChat, createNewChat, deleteChat, theme, setTheme, logout } = useAppContext();
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-
-  // If parent controls open state, keep local state in sync for animation
-  useEffect(() => {
-    if (typeof propOpen === "boolean") setIsOpen(propOpen);
-  }, [propOpen]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -29,15 +22,9 @@ const Sidebar = ({ open: propOpen, onOpen, onClose }) => {
     }
   }, [user, navigate]);
 
-  const handleOpen = () => {
-    if (typeof propOpen === "boolean") onOpen && onOpen();
-    else setIsOpen(true);
-  };
+  const handleOpen = () => setIsOpen(true);
 
-  const handleClose = () => {
-    if (typeof propOpen === "boolean") onClose && onClose();
-    else setIsOpen(false);
-  };
+  const handleClose = () => setIsOpen(false);
 
   // Create a new chat using API
   const handleNewChat = async () => {
@@ -91,9 +78,9 @@ const Sidebar = ({ open: propOpen, onOpen, onClose }) => {
         </div>
       </div>
     ), {
-      duration: Infinity, // Keep toast open until user acts
-      position: "center",
-    });
+ duration: 3000, 
+  position: "top-center",
+});
   };
 
   // Filtered Chats
@@ -209,7 +196,7 @@ const Sidebar = ({ open: propOpen, onOpen, onClose }) => {
           {filteredChats.map((chat) => {
             const firstMessage =
               chat.messages && chat.messages.length > 0
-                ? chat.messages[chat.messages.length - 1]
+                ? chat.messages[0]
                 : null;
 
             const isActive = selectedChat?._id === chat._id;

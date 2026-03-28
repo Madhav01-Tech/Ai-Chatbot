@@ -1,23 +1,43 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import './assets/prism.css';
-import Login from "./pages/Login";
+import { Toaster } from "react-hot-toast";
+import Loading from "./pages/Loading";
 import Sidebar from "./components/Sidebar";
 import Chatbox from "./components/Chatbox";
 import Credit from "./pages/Credit";
 import Community from "./pages/Community";
+import Login from "./pages/Login";
+import Profile from "./pages/Profile";
+
 const App = () => {
+  const location = useLocation();
+
+  // Hide sidebar on the login and signup pages
+  const hideSidebarOn = ["/login", "/signup"];
+  const showSidebar = !hideSidebarOn.includes(location.pathname); //gives current path location
+
   return (
     <div className="flex h-screen w-screen">
-      <Sidebar />
+       <Toaster
+       position="top-right"
+  toastOptions={{
+    style: {
+      zIndex: 9999
+    }
+  }} />
+      {showSidebar && <Sidebar />}
       <Routes>
-        <Route path="/" element={<Chatbox />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/credit" element={<Credit />} />
-        <Route path="/community" element={<Community />} />
+        <Route path="/signup" element={<Login />} />
+        <Route path="/loading" element={<Loading />} />
+        <Route path="/" element={<Chatbox />} />
         <Route path="/chat" element={<Chatbox />} />
+        <Route path="/credits" element={<Credit />} />
+        <Route path="/community" element={<Community />} />
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;
