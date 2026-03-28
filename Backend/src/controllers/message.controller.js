@@ -164,6 +164,28 @@ return res.status(200).json({
   }
 };
 
+const getPublishedImages = async (req, res) => {
+  try {
+    const chats = await Chat.find({ "messages.isImage": true, "messages.isPublished": true });
 
+    const images = chats
+      .flatMap((chat) => {
+        const authorName = chat.userName || "Anonymous";
+        return chat.messages
+          .filter((msg) => msg.isImage && msg.isPublished)
+          .map((msg) => ({
+            imageUrl: msg.content,
+            userName: authorName,
+            timeStamp: msg.timeStamp || chat.updatedAt,
+          }));
+      })
+      .sort((a, b) => (b.timeStamp || 0) - (a.timeStamp || 0));
 
-export { textMessage, imageMessage };
+    return res.status(200).json({ success: true, images });
+  } catch (error) {
+    console.error("Get Published Images Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export { textMessage, imageMessage, getPublishedImages };

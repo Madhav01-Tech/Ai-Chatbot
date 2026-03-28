@@ -1,45 +1,32 @@
 import nodemailer from "nodemailer";
 
-const getTransporter = async () => {
-    if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        return nodemailer.createTransport({
-            host: process.env.EMAIL_HOST,
-            port: Number(process.env.EMAIL_PORT) || 587,
-            secure: process.env.EMAIL_SECURE === "true",
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
-            },
-        });
-    }
+// Create transporter using env variables
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: Number(process.env.EMAIL_PORT) || 587,
+  secure: process.env.EMAIL_SECURE === "true", // true for 465, false for 587
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
-    const testAccount = await nodemailer.createTestAccount();
-    return nodemailer.createTransport({
-        host: testAccount.smtp.host,
-        port: testAccount.smtp.port,
-        secure: testAccount.smtp.secure,
-        auth: {
-            user: testAccount.user,
-            pass: testAccount.pass,
-        },
-    });
-};
-
+// Function to send email
 export const sendEmail = async ({ to, subject, html, text }) => {
-    const transporter = await getTransporter();
-
+  try {
     const info = await transporter.sendMail({
-        from: process.env.EMAIL_FROM || process.env.EMAIL_USER || "no-reply@quickchat.app",
-        to,
-        subject,
-        text,
-        html,
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to,
+      subject,
+      text,
+      html,
     });
 
-    const previewUrl = nodemailer.getTestMessageUrl(info) || null;
-    if (previewUrl) {
-        console.info("Preview URL: %s", previewUrl);
-    }
+    console.log("Email sent successfully:", info.messageId);
 
-    return { info, previewUrl };
+    return { success: true };
+  } catch (error) {
+    console.error("Email sending failed:", error.message);
+    throw new Error("Failed to send email");
+  }
 };

@@ -122,21 +122,21 @@ export async function getAssistantMessage(messages = []) {
 
 export const generateImageFromHF = async (prompt) => {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.Image_api;
     
     if (!apiKey) {
-      throw new Error("OPENAI_API_KEY environment variable not set.");
+      throw new Error("Image_api environment variable not set.");
     }
 
     // Use OpenAI's DALL-E API
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
+    const response = await fetch("https://gen.pollinations.ai/v1/images/generations", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "dall-e-3",
+        model: "flux",
         prompt: prompt,
         n: 1,
         size: "1024x1024",
