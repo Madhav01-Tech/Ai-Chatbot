@@ -107,14 +107,14 @@ ${context}
     );
     await chat.save();
 
-    // ── Step 6: Deduct credit ─────────────────────────────────────
+    //  Step 6: Deduct credit 
     user.credits = Math.max(0, user.credits - 3);
     await user.save();
 
-    // ── Optional: cleanup temp PDF ────────────────────────────────
-     fs.unlinkSync(filePath);
+    //  Optional: cleanup temp PDF 
+     // fs.unlinkSync(filePath);
 
-    // ── Optional: cleanup Chroma collection ──────────────────────
+    // Optional: cleanup Chroma collection 
      // await deleteCollection(collectionName);
 
     return res.json({
