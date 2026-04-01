@@ -10,7 +10,7 @@ const API_BASE_URL =
 async function apiCall(endpoint, method = 'GET', data = null) {
   const token = localStorage.getItem('authToken');
   
-const headers = {
+  const headers = {
     'Content-Type': 'application/json',
   };
 
@@ -30,7 +30,6 @@ const headers = {
 
   try {
     const url = API_BASE_URL + endpoint;
-    console.log(`[API ${method}] ${url}`, data && { data });
     
     const response = await fetch(url, options);
     
@@ -44,6 +43,30 @@ const headers = {
     return result; 
   } catch (error) {
     console.error(`[API Error - ${endpoint}]:`, error);   
+    throw error;
+  }
+}
+
+async function apiFileCall(endpoint, formData) {
+  const token = localStorage.getItem('authToken');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const options = {
+    method: 'POST',
+    headers,
+    body: formData,
+  };
+
+  try {
+    const response = await fetch(API_BASE_URL + endpoint, options);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || `HTTP Error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`[API File Error - ${endpoint}]:`, error);
     throw error;
   }
 }
@@ -85,6 +108,12 @@ export const messageAPI = {
   
   sendImageMessage: (chatId, prompt, isPublished = false) =>
     apiCall('/api/messages/image', 'POST', { chatId, prompt, isPublished }),
+
+  askRagQuestion: (chatId, content, filePath, fileName) =>
+  apiCall('/api/rag/ask', 'POST', { chatId, content, filePath, fileName }),
+
+uploadPdf: (formData) =>
+  apiFileCall('/api/rag/upload', formData),
 
   getPublishedImages: () =>
     apiCall('/api/messages/published', 'GET'),

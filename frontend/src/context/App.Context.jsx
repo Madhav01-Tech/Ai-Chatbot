@@ -22,7 +22,7 @@ export const AppContextProvider = ({ children }) => {
         setChats([]);
         setLoading(false);
         return;
-      }
+      }                                                                                    
 
       const response = await userAPI.getUser();
       if (response.user) {

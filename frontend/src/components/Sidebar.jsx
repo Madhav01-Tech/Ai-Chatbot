@@ -141,7 +141,7 @@ const Sidebar = () => {
           <img
             src={theme === "dark" ? assets.logo_full : assets.logo_full_dark}
             alt="Logo"
-            className="w-full max-w-[160px]"
+            className="w-full max-w-[200px]"
           />
         </div>
 
@@ -193,7 +193,8 @@ const Sidebar = () => {
             </div>
           )}
 
-          {filteredChats.map((chat) => {
+          {
+          filteredChats.map((chat) => {
             const firstMessage =
               chat.messages && chat.messages.length > 0
                 ? chat.messages[0]

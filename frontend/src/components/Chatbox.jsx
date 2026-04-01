@@ -7,95 +7,140 @@ import Message from "./message";
 import { Navigate } from "react-router-dom";
 
 const Chatbox = () => {
-  const { selectedChat, theme, user, setSelectedChat, updateChatInList,setUser } = useAppContext();
+  const { selectedChat, theme, user, setSelectedChat, updateChatInList, setUser } = useAppContext();
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState("text");
-  
+  const [showModeMenu, setShowModeMenu] = useState(false);
+  const [ragFile, setRagFile] = useState(null);
+  const [selectedFileName, setSelectedFileName] = useState("");
+  const [uploadedFilePath, setUploadedFilePath] = useState("");
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
+
+  const bottomRef = useRef(null);
+
+  const handlePdfChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    setRagFile(file);
+    setSelectedFileName(file.name);
+    setUploadStatus("Uploading PDF...");
+    await uploadPdf(file);
+  };
+
+  const uploadPdf = async (file = null) => {
+    const pdfFile = file || ragFile;
+    if (!pdfFile) {
+      setUploadStatus("Please choose a PDF file first.");
+      return;
+    }
+    try {
+      setUploadingFile(true);
+      setUploadStatus("Uploading PDF...");
+      const formData = new FormData();
+      formData.append("pdf", pdfFile);
+      const response = await messageAPI.uploadPdf(formData);
+      if (response.success) {
+        setUploadedFilePath(response.filePath);
+        setUploadStatus(`Uploaded: ${response.fileName}`);
+      } else {
+        setUploadStatus(response.message || "Upload failed.");
+      }
+    } catch (error) {
+      console.error("PDF upload failed:", error);
+      setUploadStatus(error.message || "Upload failed.");
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
   const submit = async (e) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
-    
+    const trimmedPrompt = prompt.trim();
+    if (!trimmedPrompt) return;
+
+    if (mode === "rag" && !uploadedFilePath) {
+      setUploadStatus("Please upload a PDF before asking a RAG question.");
+      return;
+    }
+
     if (!selectedChat) {
-      console.error("No chat selected");
       alert("Please create a new chat first");
       return;
     }
-    
+
     if (!user) {
-      console.error("User not logged in");
-      alert("Please log in first");
       Navigate("/login");
       return;
     }
 
     const userMessage = {
       role: "user",
-      content: prompt,
-      isImage: mode === "img"
+      content: trimmedPrompt,
+      isImage: mode === "img",
+      isRag: mode === "rag",
     };
 
     try {
       setLoading(true);
-      // Add user message to UI immediately
-      setMessages(prev => [...prev, userMessage]);
+      setMessages((prev) => [...prev, userMessage]);
       setPrompt("");
 
-      // Send to API based on mode
       let response;
-      if (mode === "img") {
-        // Image generation
-        response = await messageAPI.sendImageMessage(selectedChat._id, prompt, isPublished);
-      } else {
-        // Text message
-        response = await messageAPI.sendTextMessage(selectedChat._id, prompt);
-      }
-      
+     if (mode === "img") {
+  response = await messageAPI.sendImageMessage(selectedChat._id, trimmedPrompt, isPublished);
+} else if (mode === "rag") {
+  response = await messageAPI.askRagQuestion(
+    selectedChat._id,
+    trimmedPrompt,
+    uploadedFilePath,  // already in state from upload
+    selectedFileName,  // already in state from upload
+  );
+} else {
+  response = await messageAPI.sendTextMessage(selectedChat._id, trimmedPrompt);
+}
+
       if (response.success) {
-        // Use the updated chat from the backend with all messages
-        setUser(prevUser => ({ ...prevUser, credits: response.user.credits }));
+        setUser((prevUser) => ({ ...prevUser, credits: response.user.credits }));
         if (response.chat) {
           setSelectedChat(response.chat);
-          
-          // Update the chat in the sidebar list
           updateChatInList(response.chat);
         } else if (mode === "img" && response.imageUrl) {
-          // For image generation, imageUrl is returned separately
-          setMessages(prev => [...prev, {
-            role: "assistant",
-            content: response.imageUrl,
-            isImage: true,
-            isPublished: isPublished
-          }]);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: response.imageUrl,
+              isImage: true,
+              isPublished: isPublished,
+            },
+          ]);
         } else if (response.message) {
-          // Fallback: if chat object not available, at least add the assistant response
-          setMessages(prev => [...prev, {
-            role: "assistant",
-            content: response.message,
-            isImage: mode === "img"
-          }]);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: response.message,
+              isImage: mode === "img",
+            },
+          ]);
         }
       } else {
         throw new Error(response.message || "Failed to send message");
       }
     } catch (error) {
       console.error("Failed to send message:", error);
-      // Remove the user message if sending failed
-      setMessages(prev => prev.slice(0, -1));
-      // Show error message to user
+      setMessages((prev) => prev.slice(0, -1));
       toast.error(error.message || "Failed to send message");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Correct bottomRef
-  const bottomRef = useRef(null);
-
-  // Load messages when chat changes
   useEffect(() => {
     if (selectedChat) {
       setMessages(selectedChat.messages || []);
@@ -104,10 +149,20 @@ const Chatbox = () => {
     }
   }, [selectedChat]);
 
-  // Auto scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Close mode menu on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest("#mode-menu-wrapper")) {
+        setShowModeMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   return (
     <div className="w-full min-h-screen flex flex-col justify-between">
@@ -120,11 +175,11 @@ const Chatbox = () => {
             <img
               src={theme === "dark" ? assets.logo_full : assets.logo_full_dark}
               alt="Logo"
-              className="w-full max-w-[180px]"
+              className="w-full max-w-[220px]"
             />
             <p className="text-center text-lg text-gray-500 dark:text-gray-400">
-             🤖 Your AI assistant is ready! <br/>
-Start a new chat and explore answers, ideas, and creativity.
+              🤖 Your AI assistant is ready! <br />
+              Start a new chat and explore answers, ideas, and creativity.
             </p>
           </div>
         )}
@@ -134,10 +189,10 @@ Start a new chat and explore answers, ideas, and creativity.
             <img
               src={theme === "dark" ? assets.logo_full : assets.logo_full_dark}
               alt="Logo"
-              className="w-full max-w-[180px]"
+              className="w-full max-w-[200px]"
             />
             <p className="text-center text-lg text-gray-500 dark:text-gray-400">
-         🧠 No messages yet. <br/>Let’s create something amazing together!
+              🧠 No messages yet. <br /> Let's create something amazing together!
             </p>
           </div>
         )}
@@ -155,107 +210,165 @@ Start a new chat and explore answers, ideas, and creativity.
           </div>
         )}
 
-        {/* ✅ Scroll Anchor */}
         <div ref={bottomRef}></div>
       </div>
 
-      {
-        mode === "img" && (
-          <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-[#1f1835] dark:to-[#2a1f3d]">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input 
-                type="checkbox" 
-                className="w-4 h-4 rounded cursor-pointer" 
-                checked={isPublished} 
-                onChange={(e) => setIsPublished(e.target.checked)}
-              />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                📸 Publish this image to Community Gallery
-              </span>
+      {/* Bottom Section */}
+      <div className="border-t border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-[#111827]/90 backdrop-blur-md">
+
+        {/* Publish bar — image mode only */}
+        {mode === "img" && (
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-[#1a1f2e]">
+            <input
+              type="checkbox"
+              id="publish-cb"
+              className="w-3.5 h-3.5 cursor-pointer"
+              checked={isPublished}
+              onChange={(e) => setIsPublished(e.target.checked)}
+            />
+            <label
+              htmlFor="publish-cb"
+              className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer select-none"
+            >
+              Publish to Community Gallery
             </label>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-7">
-              Share your AI-generated images with other users
-            </p>
           </div>
-        )
-      }
+        )}
 
-      {/* Input Section */}
-      <form onSubmit={submit}
-  className="
-    p-4
-    border-t border-gray-200 dark:border-gray-700
-    bg-white/80 dark:bg-[#111827]/80
-    backdrop-blur-md
-    flex items-center gap-3
-  "
->
-  {/* Mode Select */}
-  <select
-    onChange={(e) => setMode(e.target.value)}
-    value={mode}
-    className="
-      px-4 py-2
-      rounded-full
-      bg-gray-100 dark:bg-gray-800
-      text-gray-700 dark:text-white
-      text-sm font-medium
-      outline-none
-      transition-all duration-300
-      focus:ring-2 focus:ring-[var(--primary-color)]
-      cursor-pointer
-      hover:bg-gray-200 dark:hover:bg-gray-700
-    "
-  >
-    <option value="text">💬 Text</option>
-    <option value="img">🎨 Image</option>
-  </select>
+        {/* Input form */}
+        <form onSubmit={submit} className="p-3">
+          <div className="relative rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111827] overflow-visible">
 
-  {/* Input Field */}
-  <input
-    type="text"
-    placeholder={mode === "img" ? "Describe the image you want to generate..." : "Ask me something..."}
-    value={prompt}
-    onChange={(e) => setPrompt(e.target.value)}
-    className="
-      flex-1
-      px-5 py-3
-      rounded-full
-      bg-gray-100 dark:bg-gray-800
-      text-gray-800 dark:text-white
-      placeholder-gray-400
-      outline-none
-      transition-all duration-300
-      focus:ring-2 focus:ring-[var(--primary-color)]
-      focus:shadow-md
-    "
-  />
+            {/* Textarea */}
+            <textarea
+              rows={2}
+              placeholder={
+                mode === "img"
+                  ? "Describe the image you want to generate..."
+                  : mode === "rag"
+                  ? "Ask about the uploaded document..."
+                  : "Ask me something..."
+              }
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submit(e);
+                }
+              }}
+              className="w-full resize-none border-0 bg-transparent px-3 pt-3 pb-2 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 outline-none focus:outline-none"
+              style={{ minHeight: "62px", maxHeight: "180px" }}
+            />
 
-  {/* Send Button */}
-  <button
-    disabled={loading}
-    type="submit"
-    className="
-     
-      rounded-full
-     
- 
-      transition-all duration-300
-      hover:scale-105
-      active:scale-95
-      disabled:opacity-50
-      disabled:cursor-not-allowed
-      shadow-md
-    "
-  >
-    <img
-      src={loading ? assets.stop_icon : assets.send_icon}
-      className="w-12 h-12"
-      alt="send"
-    />
-  </button>
-</form>
+            {/* Toolbar */}
+            <div className="flex items-center gap-2 px-2 pb-2 pt-1 border-t border-gray-100 dark:border-gray-700">
 
+              {/* Mode selector */}
+              <div id="mode-menu-wrapper" className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowModeMenu((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1f1f2a] text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <span className="text-sm">
+                    {mode === "text" ? "💬" : mode === "rag" ? "📄" : "🎨"}
+                  </span>
+                  {mode === "text" ? "Text" : mode === "rag" ? "RAG" : "Image"}
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50">
+                    <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {showModeMenu && (
+                  <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-28 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111827] p-1 shadow-lg">
+                    {[
+                      { value: "text", label: "Text", icon: "💬" },
+                      { value: "rag", label: "RAG", icon: "📄" },
+                      { value: "img", label: "Image", icon: "🎨" },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => {
+                          setMode(item.value);
+                          setShowModeMenu(false);
+                        }}
+                        className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs font-medium transition-colors ${
+                          mode === item.value
+                            ? "bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white"
+                            : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        }`}
+                      >
+                        <span>{item.icon}</span>
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* RAG attach */}
+              {mode === "rag" && (
+                <div className="flex items-center gap-1.5">
+                  <label
+                    htmlFor="rag-upload"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1f1f2a] text-xs font-medium text-gray-600 dark:text-gray-300 cursor-pointer hover:border-[var(--primary-color)] hover:text-gray-900 dark:hover:text-white transition-colors"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                      <path d="M6 1v7M3 5l3 3 3-3M2 10h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Attach PDF
+                  </label>
+                  <input
+                    id="rag-upload"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePdfChange}
+                    className="hidden"
+                  />
+                  {selectedFileName && (
+                    <span className="text-[11px] text-gray-400 max-w-[110px] truncate">
+                      {selectedFileName}
+                    </span>
+                  )}
+                  {uploadStatus && !selectedFileName && (
+                    <span className="text-[11px] text-gray-400">{uploadStatus}</span>
+                  )}
+                  {uploadingFile && (
+                    <span className="text-[11px] text-gray-400 animate-pulse">Uploading...</span>
+                  )}
+                </div>
+              )}
+
+              <div className="flex-1" />
+
+              {/* Keyboard hint */}
+              <span className="text-[11px] text-gray-400 hidden sm:block">
+                ⏎ send · ⇧⏎ newline
+              </span>
+
+              {/* Send button */}
+              <button
+                type="submit"
+                disabled={loading || (mode === "rag" && !uploadedFilePath)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--primary-color)] text-xs font-semibold text-white hover:bg-[#3b82f6] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {loading ? (
+                  "..."
+                ) : (
+                  <>
+                    Send
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                      <path d="M1 6h10M7 2l4 4-4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
