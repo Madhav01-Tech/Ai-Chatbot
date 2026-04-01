@@ -2,6 +2,7 @@ import { createdChat, getChat, deleteChat } from "../controllers/chat.controller
 import authmiddleware from "../middleware/auth.middleware.js";
 import express from "express";
 
+
 const Chatrouter = express.Router();
 
 // CREATE CHAT
@@ -12,5 +13,7 @@ Chatrouter.get("/", authmiddleware, getChat);
 
 // DELETE CHAT
 Chatrouter.delete("/delete/:chatId", authmiddleware, deleteChat);
+// UPLOAD pdf for RAG
+
 
 export default Chatrouter;

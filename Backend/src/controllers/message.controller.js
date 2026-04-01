@@ -53,7 +53,7 @@ const textMessage = async (req, res) => {
       role: "system",
       content: `You are a jarvis assistant who gives helpful information.
         You have access to:
-        1. WebSearch({searchQuery}) - for realtime web information.`,
+        1. WebSearch({searchQuery}) - for realtime web information and you focused on recent information first .`,
     };
 
     const messagesForAI = [

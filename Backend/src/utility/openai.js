@@ -23,7 +23,7 @@ async function webSearch(SearchQuery) {
 
   const tvly = tavily({ apiKey: tvlyApiKey });
   const response = await tvly.search(SearchQuery);
-  console.log("Web search results:", response);
+  
 
   return response.results
     ?.map((result) => result.content)
@@ -128,7 +128,7 @@ export const generateImageFromHF = async (prompt) => {
       throw new Error("Image_api environment variable not set.");
     }
 
-    // Use OpenAI's DALL-E API
+    
     const response = await fetch("https://gen.pollinations.ai/v1/images/generations", {
       method: "POST",
       headers: {
@@ -151,6 +151,7 @@ export const generateImageFromHF = async (prompt) => {
     }
 
     const data = await response.json();
+   
     
     if (!data.data || !data.data[0] || !data.data[0].b64_json) {
       throw new Error("No image data received from OpenAI");

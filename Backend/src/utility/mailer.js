@@ -1,4 +1,7 @@
+import dotenv from "dotenv";
 import nodemailer from "nodemailer";
+
+dotenv.config();
 
 // Create transporter using env variables
 const transporter = nodemailer.createTransport({
@@ -22,7 +25,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
       html,
     });
 
-    console.log("Email sent successfully:", info.messageId);
+    
 
     return { success: true };
   } catch (error) {
