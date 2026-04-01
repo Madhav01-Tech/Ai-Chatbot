@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 import { assets } from "../assets/assets";
 import { useAppContext } from "../context/App.Context";
 import { messageAPI } from "../utils/api";
-import Message from "./message";
+import Message from "./Message.jsx";
 import { Navigate } from "react-router-dom";
 
 const Chatbox = () => {
