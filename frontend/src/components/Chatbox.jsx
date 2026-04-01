@@ -17,9 +17,9 @@ const Chatbox = () => {
   const [showModeMenu, setShowModeMenu] = useState(false);
   const [ragFile, setRagFile] = useState(null);
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [uploadStatus, setUploadStatus] = useState("");
   const [uploadedFilePath, setUploadedFilePath] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState("");
 
   const bottomRef = useRef(null);
 
@@ -108,6 +108,7 @@ const Chatbox = () => {
         setUser((prevUser) => ({ ...prevUser, credits: response.user.credits }));
         if (response.chat) {
           setSelectedChat(response.chat);
+          console.log("Updated chat with new message:", response.chat);
           updateChatInList(response.chat);
         } else if (mode === "img" && response.imageUrl) {
           setMessages((prev) => [
@@ -189,10 +190,10 @@ const Chatbox = () => {
             <img
               src={theme === "dark" ? assets.logo_full : assets.logo_full_dark}
               alt="Logo"
-              className="w-full max-w-[200px]"
+              className="w-full max-w-[220px]"
             />
             <p className="text-center text-lg text-gray-500 dark:text-gray-400">
-              🧠 No messages yet. <br /> Let's create something amazing together!
+              🧠 No messages yet. <br /> Use different modes for different uses
             </p>
           </div>
         )}

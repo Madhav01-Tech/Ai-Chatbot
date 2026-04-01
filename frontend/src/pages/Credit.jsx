@@ -1,10 +1,12 @@
 import React from "react";
 import { dummyPlans } from "../assets/assets";
 import Loading from "./Loading";
+import { useNavigate } from "react-router-dom";
 
 const Credit = () => {
   const [plans, setPlans] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     setTimeout(() => {
@@ -95,6 +97,7 @@ const Credit = () => {
                 backgroundColor: "var(--primary-color)",
                 color: "#fff",
               }}
+              onClick={(e)=>(e.preventDefault(), navigate("/plans"))}
             >
               Choose Plan
             </button>

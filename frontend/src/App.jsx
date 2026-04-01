@@ -8,6 +8,7 @@ import Credit from "./pages/Credit";
 import Community from "./pages/Community";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
+import PlanAvailable from "./pages/plans";
 
 const App = () => {
   const location = useLocation();
@@ -20,7 +21,7 @@ const App = () => {
     <div className="flex h-screen w-screen">
        <Toaster
        position="top-right"
-  toastOptions={{
+       toastOptions={{
     style: {
       zIndex: 9999
     }
@@ -35,6 +36,7 @@ const App = () => {
         <Route path="/credits" element={<Credit />} />
         <Route path="/community" element={<Community />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/plans" element={<PlanAvailable />} />
       </Routes>
     </div>
   );
