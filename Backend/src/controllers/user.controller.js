@@ -52,36 +52,31 @@ const registerUser = async (req, res) => {
     }
 
     // Send OTP Email
-    await sendEmail({
+  await sendEmail({
   to: email,
-  subject: "PromptlyAI Email Verification Code",
-  text: `Your One-Time Password (OTP) for PromptlyAI account verification is ${otp}. This code is valid for the next 3 minutes. Please do not share it with anyone.`,
+  subject: "PromptlyAI OTP Verification",
+  text: `Your OTP is ${otp}`,
   html: `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-      <h2 style="color: #4CAF50;">PromptlyAI Email Verification</h2>
+    <div style="font-family: Arial; background:#f6f6f6; padding:20px;">
       
-      <p>Dear User,</p>
-      
-      <p>Thank you for signing up with <strong>PromptlyAI</strong>. To complete your registration, please use the verification code below:</p>
-      
-      <div style="margin: 20px 0; text-align: center;">
-        <span style="display: inline-block; padding: 12px 24px; font-size: 24px; font-weight: bold; letter-spacing: 2px; background-color: #f4f4f4; border-radius: 8px;">
+      <div style="max-width:400px; margin:auto; background:white; padding:20px; border-radius:8px;">
+        
+        <h2 style="text-align:center;">PromptlyAI</h2>
+        
+        <p>Verify your account using this code:</p>
+        
+        <div style="text-align:center; font-size:26px; font-weight:bold; margin:15px 0;">
           ${otp}
-        </span>
+        </div>
+        
+        <p style="font-size:14px; color:gray;">
+          Expires in 3 minutes
+        </p>
+        
       </div>
-      
-      <p>This code is valid for <strong>3 minutes</strong>.</p>
-      
-      <p>If you did not request this, please ignore this email. For security reasons, do not share this code with anyone.</p>
-      
-      <br/>
-      
-      <p>Best regards,</p>
-      <p><strong>PromptlyAI Team</strong></p>
     </div>
   `,
 });
-
     return res.status(200).json({
       success: true,
       message: "OTP sent to email. Please verify to complete registration",
