@@ -4,7 +4,7 @@
 const API_BASE_URL = 
   import.meta.env.MODE === 'development' 
     ? '' // Use relative path with Vite proxy in dev
-    : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+    : (import.meta.env.VITE_API_URL || 'https://ai-chatbot-9p3w.onrender.com');
 
 // Helper function to make API calls with authentication
 async function apiCall(endpoint, method = 'GET', data = null) {
