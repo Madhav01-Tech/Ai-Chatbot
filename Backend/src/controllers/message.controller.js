@@ -105,7 +105,7 @@ const imageMessage = async (req, res) => {
 
     const userDoc = await User.findById(userId).select("credits");
 
-    if ((userDoc.credits || 0) < 10) {
+    if ((userDoc.credits || 0) < 20) {
       return res.status(402).json({ success: false, message: "Not enough credits" });
     }
 
@@ -117,10 +117,10 @@ const imageMessage = async (req, res) => {
       isImage: false,
     });
 
-    // 🔥 STEP 1: Create Task
+    //  STEP 1: Create Task
     const taskId = await generateImageFromFreepik(prompt);
 
-    // 🔥 STEP 2: Poll internally
+    // STEP 2: Poll internally
     let imageUrl = null;
     let attempts = 0;
     const MAX_ATTEMPTS = 15;
@@ -160,7 +160,7 @@ const imageMessage = async (req, res) => {
     // Deduct credits
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { $inc: { credits: -10 } },
+      { $inc: { credits: -20 } },
       { new: true }
     );
 

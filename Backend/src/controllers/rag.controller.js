@@ -52,7 +52,7 @@ export const askRagQuestion = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.json({ success: false, message: "User not found." });
 
-    if (user.credits <= 0) {
+    if (user.credits <5) {
       return res.json({ success: false, message: "Insufficient credits." });
     }
 
@@ -108,7 +108,7 @@ ${context}
     await chat.save();
 
     //  Step 6: Deduct credit 
-    user.credits = Math.max(0, user.credits - 3);
+    user.credits = User.findByIdAndUpdate(userId, { $inc: { credits: -5 } }, { after: true });
     await user.save();
 
     //  Optional: cleanup temp PDF 
