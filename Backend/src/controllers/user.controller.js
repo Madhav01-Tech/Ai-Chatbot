@@ -58,21 +58,15 @@ const registerUser = async (req, res) => {
   text: `Your OTP is ${otp}`,
   html: `
     <div style="font-family: Arial; background:#f6f6f6; padding:20px;">
-      
       <div style="max-width:400px; margin:auto; background:white; padding:20px; border-radius:8px;">
-        
         <h2 style="text-align:center;">PromptlyAI</h2>
-        
         <p>Verify your account using this code:</p>
-        
         <div style="text-align:center; font-size:26px; font-weight:bold; margin:15px 0;">
           ${otp}
         </div>
-        
         <p style="font-size:14px; color:gray;">
           Expires in 3 minutes
         </p>
-        
       </div>
     </div>
   `,
@@ -209,17 +203,25 @@ const resendOtp = async (req, res) => {
 
     await user.save();
 
-    await sendEmail({
-      to: email,
-      subject: "QuickChat OTP - Resend",
-      text: `Your new OTP is ${otp}. It expires in 3 minutes.`,
-      html: `
-        <h2>QuickChat OTP</h2>
-        <p>Your new OTP is:</p>
-        <h1>${otp}</h1>
-        <p>This OTP expires in 3 minutes.</p>
-      `,
-    });
+     await sendEmail({
+  to: email,
+  subject: "PromptlyAI OTP Verification",
+  text: `Your OTP is ${otp}`,
+  html: `
+    <div style="font-family: Arial; background:#f6f6f6; padding:20px;">
+      <div style="max-width:400px; margin:auto; background:white; padding:20px; border-radius:8px;">
+        <h2 style="text-align:center;">PromptlyAI</h2>
+        <p>Verify your account using this code:</p>
+        <div style="text-align:center; font-size:26px; font-weight:bold; margin:15px 0;">
+          ${otp}
+        </div>
+        <p style="font-size:14px; color:gray;">
+          Expires in 3 minutes
+        </p>
+      </div>
+    </div>
+  `,
+});
 
     return res.status(200).json({
       success: true,
