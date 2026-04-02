@@ -70,7 +70,7 @@ const Auth = () => {
         }
       }
 
-      /* ================= VERIFY OTP ================= */
+      /*  VERIFY OTP */
       else if (otpMode) {
 
         if (!otp || otp.length !== 6) {
@@ -90,7 +90,7 @@ const Auth = () => {
         }
       }
 
-      /* ================= REGISTER ================= */
+      /*REGISTER  */
       else {
 
         if (!formData.name || !formData.email || !formData.password) {
@@ -160,7 +160,7 @@ const Auth = () => {
 
           <h1 className="text-4xl font-bold flex items-center gap-3">
             Welcome to
-            <img src={assets.logo_full} alt="Logo" className="w-32" />
+            <img src={assets.logo_full} alt="Logo" className="w-55" />
           </h1>
 
           <p className="text-lg opacity-90 mt-4">
