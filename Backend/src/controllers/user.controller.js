@@ -53,16 +53,34 @@ const registerUser = async (req, res) => {
 
     // Send OTP Email
     await sendEmail({
-      to: email,
-      subject: "QuickChat Email Verification OTP",
-      text: `Your OTP for QuickChat signup is ${otp}. It expires in 3 minutes.`,
-      html: `
-        <h2>QuickChat Email Verification</h2>
-        <p>Your OTP is:</p>
-        <h1>${otp}</h1>
-        <p>This OTP expires in 3 minutes.</p>
-      `,
-    });
+  to: email,
+  subject: "PromptlyAI Email Verification Code",
+  text: `Your One-Time Password (OTP) for PromptlyAI account verification is ${otp}. This code is valid for the next 3 minutes. Please do not share it with anyone.`,
+  html: `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+      <h2 style="color: #4CAF50;">PromptlyAI Email Verification</h2>
+      
+      <p>Dear User,</p>
+      
+      <p>Thank you for signing up with <strong>PromptlyAI</strong>. To complete your registration, please use the verification code below:</p>
+      
+      <div style="margin: 20px 0; text-align: center;">
+        <span style="display: inline-block; padding: 12px 24px; font-size: 24px; font-weight: bold; letter-spacing: 2px; background-color: #f4f4f4; border-radius: 8px;">
+          ${otp}
+        </span>
+      </div>
+      
+      <p>This code is valid for <strong>3 minutes</strong>.</p>
+      
+      <p>If you did not request this, please ignore this email. For security reasons, do not share this code with anyone.</p>
+      
+      <br/>
+      
+      <p>Best regards,</p>
+      <p><strong>PromptlyAI Team</strong></p>
+    </div>
+  `,
+});
 
     return res.status(200).json({
       success: true,
