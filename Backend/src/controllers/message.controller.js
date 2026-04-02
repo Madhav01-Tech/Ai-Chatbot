@@ -1,6 +1,6 @@
 import { Chat } from "../models/chat.model.js";
 import { User } from "../models/user.model.js";
-import { generateImageFromHF, getAssistantMessage } from "../utility/openai.js";
+import { generateImageFromFreepik, getFreepikImageStatus,getAssistantMessage } from "../utility/openai.js";
 import ImageKit from "imagekit";
 
 
@@ -94,12 +94,8 @@ const imageMessage = async (req, res) => {
     const userId = req.userId;
     const { chatId, prompt, isPublished = false } = req.body;
 
-    if (!prompt) {
-      return res.status(400).json({ success: false, message: "Prompt is required" });
-    }
-
-    if (!chatId) {
-      return res.status(400).json({ success: false, message: "chatId is required" });
+    if (!prompt || !chatId) {
+      return res.status(400).json({ success: false, message: "Missing fields" });
     }
 
     const chat = await Chat.findOne({ _id: chatId, userId });
@@ -108,15 +104,12 @@ const imageMessage = async (req, res) => {
     }
 
     const userDoc = await User.findById(userId).select("credits");
-    if (!userDoc) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
 
-    if ((userDoc.credits || 0) < 2) {
+    if ((userDoc.credits || 0) < 10) {
       return res.status(402).json({ success: false, message: "Not enough credits" });
     }
 
-    // Save user prompt
+    // Save user message
     chat.messages.push({
       role: "user",
       content: prompt,
@@ -124,36 +117,59 @@ const imageMessage = async (req, res) => {
       isImage: false,
     });
 
-// Generate image
-const imageBase64 = await generateImageFromHF(prompt);
+    // 🔥 STEP 1: Create Task
+    const taskId = await generateImageFromFreepik(prompt);
 
-// Create data URL
-const imageUrl = `data:image/png;base64,${imageBase64}`;
+    // 🔥 STEP 2: Poll internally
+    let imageUrl = null;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 15;
 
-// Save assistant image message
-chat.messages.push({
-  role: "assistant",
-  content: imageUrl,
-  timeStamp: Date.now(),
-  isImage: true,
-  isPublished,
-});
+    while (!imageUrl && attempts < MAX_ATTEMPTS) {
+      const statusData = await getFreepikImageStatus(taskId);
 
-await chat.save();
+      if (statusData.status === "COMPLETED") {
+        imageUrl = statusData.generated[0];
+        break;
+      }
 
-// Deduct credits
-const updatedUser = await User.findByIdAndUpdate(
-  userId,
-  { $inc: { credits: -2 } },
-  { after: true }
-);
+      if (statusData.status === "FAILED") {
+        throw new Error("Image generation failed");
+      }
 
-return res.status(200).json({
-  success: true,
-  imageUrl,
-  chat,
-  user: updatedUser,
-});
+      // wait 2 sec
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      attempts++;
+    }
+
+    if (!imageUrl) {
+      throw new Error("Image generation timeout");
+    }
+
+    // Save assistant message
+    chat.messages.push({
+      role: "assistant",
+      content: imageUrl,
+      timeStamp: Date.now(),
+      isImage: true,
+      isPublished,
+    });
+
+    await chat.save();
+
+    // Deduct credits
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { credits: -10 } },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      imageUrl,
+      chat,
+      user: updatedUser,
+    });
 
   } catch (error) {
     console.error("Image Controller Error:", error);

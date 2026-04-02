@@ -115,51 +115,50 @@ export async function getAssistantMessage(messages = []) {
   }
 }
 
-/* ==============================
-   IMAGE GENERATION FUNCTION
-   (Using OpenAI DALL-E)
-============================== */
+/*
+   IMAGE GENERATION FUNCTION*/
+ 
 
-export const generateImageFromHF = async (prompt) => {
-  try {
-    const apiKey = process.env.Image_api;
-    
-    if (!apiKey) {
-      throw new Error("Image_api environment variable not set.");
-    }
+export const generateImageFromFreepik = async (prompt) => {
+  const apiKey = process.env.FREEPIK_API_KEY;
 
-    
-    const response = await fetch("https://gen.pollinations.ai/v1/images/generations", {
+  const response = await fetch(
+    "https://api.freepik.com/v1/ai/text-to-image/flux-dev",
+    {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        "x-freepik-api-key": apiKey,
       },
       body: JSON.stringify({
-        model: "flux",
-        prompt: prompt,
-        n: 1,
-        size: "1024x1024",
-        quality: "standard",
-        response_format: "b64_json",
+        prompt,
+        aspect_ratio: "square_1_1",
       }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || `OpenAI API error: ${response.statusText}`);
     }
+  );
 
-    const data = await response.json();
-   
-    
-    if (!data.data || !data.data[0] || !data.data[0].b64_json) {
-      throw new Error("No image data received from OpenAI");
-    }
+  const data = await response.json();
 
-    return data.data[0].b64_json;
-  } catch (error) {
-    console.error("Image Generation Error:", error.message);
-    throw new Error(`Failed to generate image: ${error.message}`);
+  if (!data?.data?.task_id) {
+    throw new Error("Failed to create image task");
   }
+
+  return data.data.task_id;
+};
+
+export const getFreepikImageStatus = async (taskId) => {
+  const apiKey = process.env.FREEPIK_API_KEY;
+
+  const response = await fetch(
+    `https://api.freepik.com/v1/ai/text-to-image/flux-dev/${taskId}`,
+    {
+      method: "GET",
+      headers: {
+        "x-freepik-api-key": apiKey,
+      },
+    }
+  );
+
+  const data = await response.json();
+  return data.data;
 };
