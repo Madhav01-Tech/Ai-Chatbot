@@ -49,7 +49,7 @@ app.get("*", (req, res) => {
 
 // ❗ Connect DB FIRST, then start server
 const PORT = process.env.port || 5000;
-
+console.log(PORT);
 connectDB()
   .then(() => {
     app.listen(PORT, () => {

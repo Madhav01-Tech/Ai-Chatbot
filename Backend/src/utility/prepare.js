@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import pdf from "pdf-parse";
+
 import { pipeline } from "@huggingface/transformers";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
@@ -30,6 +30,7 @@ export const embedText = async (text) => {
     pooling: "mean",
     normalize: true,
   });
+
   return Array.from(output.data);
 };
 
@@ -60,7 +61,6 @@ export const loadPdf = async (filePath) => {
 
   console.log(`[RAG] Loading: ${path.basename(filePath)}`);
 
-  // 1️⃣ Try PDFLoader
   try {
     const loader = new PDFLoader(filePath);
     const rawDocs = await loader.load();
@@ -77,20 +77,8 @@ export const loadPdf = async (filePath) => {
     console.warn("⚠️ PDFLoader failed:", err.message);
   }
 
-  // 2️⃣ Fallback → pdf-parse
-  try {
-    const buffer = fs.readFileSync(filePath);
-    const data = await pdf(buffer);
-
-    if (data.text && data.text.trim().length > 0) {
-      console.log("✅ pdf-parse fallback worked");
-      return [{ pageContent: data.text }];
-    }
-  } catch (err) {
-    console.warn("⚠️ pdf-parse failed:", err.message);
-  }
-
-  throw new Error("❌ PDF is empty or could not be parsed.");
+  // fallback error
+  throw new Error("Failed to load PDF or empty content");
 };
 
 // ================= CHUNKING =================
@@ -118,7 +106,7 @@ export const storeInChroma = async (chunks, collectionName) => {
 
   console.log("[RAG] Generating embeddings...");
 
-  // 🚀 FAST PARALLEL EMBEDDING
+  // ⚡ parallel embedding (can optimize later with batching)
   const embeddings = await Promise.all(
     chunks.map((chunk) => embedText(chunk.pageContent))
   );
@@ -157,7 +145,7 @@ export const retrieveFromChroma = async (collectionName, query) => {
     nResults: TOP_K_RESULTS,
   });
 
-  const chunks = results.documents[0] ?? [];
+  const chunks = results.documents?.[0] ?? [];
   return chunks;
 };
 
@@ -172,7 +160,7 @@ export const deleteCollection = async (collectionName) => {
   }
 };
 
-// ================= MASTER PIPELINE =================
+// ================= BUILD PIPELINE =================
 export const buildChromaCollection = async (filePath, collectionName) => {
   const rawDocs = await loadPdf(filePath);
   const chunks = await chunkDocuments(rawDocs);
