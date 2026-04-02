@@ -54,21 +54,15 @@ const registerUser = async (req, res) => {
     // Send OTP Email
   await sendEmail({
   to: email,
-  subject: "PromptlyAI OTP Verification",
-  text: `Your OTP is ${otp}`,
+  subject: "PromptlyAI OTP",
+  text: `Your OTP is ${otp}. Expires in 3 minutes.`,
   html: `
-    <div style="font-family: Arial; background:#f6f6f6; padding:20px;">
-      <div style="max-width:400px; margin:auto; background:white; padding:20px; border-radius:8px;">
-        <h2 style="text-align:center;">PromptlyAI</h2>
-        <p>Verify your account using this code:</p>
-        <div style="text-align:center; font-size:26px; font-weight:bold; margin:15px 0;">
-          ${otp}
-        </div>
-        <p style="font-size:14px; color:gray;">
-          Expires in 3 minutes
-        </p>
-      </div>
-    </div>
+    <h2 style="margin:0;">PromptlyAI</h2>
+    <p style="margin:8px 0;">Your verification code:</p>
+    <h1 style="letter-spacing:3px; margin:12px 0;">${otp}</h1>
+    <p style="font-size:12px; color:#777; margin:0;">
+      Expires in 3 minutes
+    </p>
   `,
 });
     return res.status(200).json({
@@ -201,25 +195,17 @@ const resendOtp = async (req, res) => {
     user.otp = otp;
     user.otpExpires = otpExpires;
 
-    await user.save();
-
-     await sendEmail({
+    await sendEmail({
   to: email,
-  subject: "PromptlyAI OTP Verification",
-  text: `Your OTP is ${otp}`,
+  subject: "PromptlyAI OTP",
+  text: `Your OTP is ${otp}. Expires in 3 minutes.`,
   html: `
-    <div style="font-family: Arial; background:#f6f6f6; padding:20px;">
-      <div style="max-width:400px; margin:auto; background:white; padding:20px; border-radius:8px;">
-        <h2 style="text-align:center;">PromptlyAI</h2>
-        <p>Verify your account using this code:</p>
-        <div style="text-align:center; font-size:26px; font-weight:bold; margin:15px 0;">
-          ${otp}
-        </div>
-        <p style="font-size:14px; color:gray;">
-          Expires in 3 minutes
-        </p>
-      </div>
-    </div>
+    <h2 style="margin:0;">PromptlyAI</h2>
+    <p style="margin:8px 0;">Your verification code:</p>
+    <h1 style="letter-spacing:3px; margin:12px 0;">${otp}</h1>
+    <p style="font-size:12px; color:#777; margin:0;">
+      Expires in 3 minutes
+    </p>
   `,
 });
 
