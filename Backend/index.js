@@ -48,7 +48,7 @@ app.get("*", (req, res) => {
 });
 
 // ❗ Connect DB FIRST, then start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.port || 5000;
 
 connectDB()
   .then(() => {
