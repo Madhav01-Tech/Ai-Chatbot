@@ -52,17 +52,30 @@ const registerUser = async (req, res) => {
     }
 
     // Send OTP Email
-  await sendEmail({
+await sendEmail({
   to: email,
-  subject: "PromptlyAI OTP",
-  text: `Your OTP is ${otp}. Expires in 3 minutes.`,
+  subject: "PromptlyAI OTP Verification",
+  
+  text: `Your OTP is ${otp}`,
+
   html: `
-    <h2 style="margin:0;">PromptlyAI</h2>
-    <p style="margin:8px 0;">Your verification code:</p>
-    <h1 style="letter-spacing:3px; margin:12px 0;">${otp}</h1>
-    <p style="font-size:12px; color:#777; margin:0;">
-      Expires in 3 minutes
-    </p>
+    <div style="font-family: Arial; background:#f6f6f6; padding:20px;">
+      <div style="max-width:400px; margin:auto; background:white; padding:20px; border-radius:8px;">
+        
+        <h2 style="text-align:center; color:#333;">PromptlyAI</h2>
+        
+        <p style="font-size:16px;">Verify your account using this code:</p>
+        
+        <div style="text-align:center; font-size:28px; font-weight:bold; margin:20px 0; color:#4CAF50;">
+          ${otp}
+        </div>
+        
+        <p style="font-size:14px; color:gray;">
+          Expires in 3 minutes
+        </p>
+
+      </div>
+    </div>
   `,
 });
     return res.status(200).json({
@@ -197,15 +210,28 @@ const resendOtp = async (req, res) => {
 
     await sendEmail({
   to: email,
-  subject: "PromptlyAI OTP",
-  text: `Your OTP is ${otp}. Expires in 3 minutes.`,
+  subject: "PromptlyAI OTP Verification",
+  
+  text: `Your OTP is ${otp}`,
+
   html: `
-    <h2 style="margin:0;">PromptlyAI</h2>
-    <p style="margin:8px 0;">Your verification code:</p>
-    <h1 style="letter-spacing:3px; margin:12px 0;">${otp}</h1>
-    <p style="font-size:12px; color:#777; margin:0;">
-      Expires in 3 minutes
-    </p>
+    <div style="font-family: Arial; background:#f6f6f6; padding:20px;">
+      <div style="max-width:400px; margin:auto; background:white; padding:20px; border-radius:8px;">
+        
+        <h2 style="text-align:center; color:#333;">PromptlyAI</h2>
+        
+        <p style="font-size:16px;">Verify your account using this code:</p>
+        
+        <div style="text-align:center; font-size:28px; font-weight:bold; margin:20px 0; color:#4CAF50;">
+          ${otp}
+        </div>
+        
+        <p style="font-size:14px; color:gray;">
+          Expires in 3 minutes
+        </p>
+
+      </div>
+    </div>
   `,
 });
 
