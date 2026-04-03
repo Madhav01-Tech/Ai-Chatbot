@@ -1,36 +1,29 @@
 import dotenv from "dotenv";
-import nodemailer from "nodemailer";
+import SibApiV3Sdk from "sib-api-v3-sdk"
 
 dotenv.config();
 
-// Create transporter using env variables
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: Number(process.env.EMAIL_PORT) || 587,
-  secure: false,
-  requireTLS: true,        // ← ADD THIS
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false  // ← ADD THIS
-  }
-});
+;
 
-// Function to send email
+const defaultClient = SibApiV3Sdk.ApiClient.instance;
+const apiKey = defaultClient.authentications["api-key"];
+apiKey.apiKey = process.env.BREVO_API_KEY;
+
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+
 export const sendEmail = async ({ to, subject, html, text }) => {
   try {
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to,
-      subject,
-      text,
-      html,
-    });
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: to }];
+    sendSmtpEmail.subject = subject;
+    sendSmtpEmail.htmlContent = html;
+    sendSmtpEmail.textContent = text;
+    sendSmtpEmail.sender = {
+      name: process.env.name || "PromptlyAI",
+      email: process.env.email || "promptlyai01@gmail.com"
+    };
 
-    
-
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
     return { success: true };
   } catch (error) {
     console.error("Email sending failed:", error.message);
