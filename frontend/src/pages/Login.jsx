@@ -103,6 +103,11 @@ const Auth = () => {
           formData.email,
           formData.password
         );
+        
+        if(!response.success){
+          setError("Request failed. Please try again.");
+          return;
+        }
 
         setPendingEmail(formData.email);
         setOtpMode(true);
@@ -119,7 +124,7 @@ const Auth = () => {
     }
   };
 
-  /* ================= RESEND OTP ================= */
+  /*  RESEND OTP  */
 
   const handleResendOtp = async () => {
     if (!pendingEmail) return;
