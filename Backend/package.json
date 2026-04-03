@@ -33,7 +33,9 @@
     "nodemailer": "^8.0.4",
     "openai": "^4.104.0",
     "pdf-parse": "^2.4.5",
-    "sib-api-v3-sdk": "^8.5.0"
+    "pdfjs-dist": "^5.6.205",
+    "sib-api-v3-sdk": "^8.5.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.13"

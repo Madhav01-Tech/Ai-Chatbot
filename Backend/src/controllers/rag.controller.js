@@ -1,20 +1,22 @@
 // controllers/ragController.js
 import fs from "fs";
+import path from "path";
+
 import {
   buildChromaCollection,
   retrieveFromChroma,
-  deleteCollection,
 } from "../utility/prepare.js";
+
 import { getAssistantMessage } from "../utility/openai.js";
 import { Chat } from "../models/chat.model.js";
 import { User } from "../models/user.model.js";
 
-
+// ================= HELPERS =================
 const makeCollectionName = (chatId) => {
-  return `chat-${chatId}`;  
-  };
+  return `chat-${chatId}`;
+};
 
-
+// ================= UPLOAD =================
 export const uploadPdf = async (req, res) => {
   try {
     if (!req.file) {
@@ -22,27 +24,26 @@ export const uploadPdf = async (req, res) => {
     }
 
     return res.json({
-      success:  true,
+      success: true,
       filePath: req.file.path,
       fileName: req.file.originalname,
     });
-
   } catch (error) {
     console.error("[ragController] uploadPdf:", error);
     return res.json({ success: false, message: error.message });
   }
 };
 
-
+// ================= ASK =================
 export const askRagQuestion = async (req, res) => {
   try {
     const { chatId, content, filePath, fileName } = req.body;
     const userId = req.userId;
- 
-   if (!chatId || !content || !filePath || !fileName) {
+
+    if (!chatId || !content || !filePath || !fileName) {
       return res.json({
         success: false,
-        message: "chatId, content, filePath and fileName are all required.",
+        message: "chatId, content, filePath, fileName required",
       });
     }
 
@@ -52,78 +53,93 @@ export const askRagQuestion = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.json({ success: false, message: "User not found." });
 
-    if (user.credits <5) {
+    if (user.credits < 5) {
       return res.json({ success: false, message: "Insufficient credits." });
     }
 
-    
-   const collectionName = makeCollectionName(chatId);
-    await buildChromaCollection(filePath, collectionName);
+    const collectionName = makeCollectionName(chatId);
 
-    
-    const relevantChunks = await retrieveFromChroma(collectionName, content); // similar text in db according to query
+    // ================= 🔥 BUILD ONLY ONCE =================
+    if (!chat.isRagInitialized) {
+      console.log("[RAG] First time processing PDF...");
 
-    if (relevantChunks.length === 0) {
+      await buildChromaCollection(filePath, collectionName);
+
+      chat.isRagInitialized = true;
+      chat.fileName = fileName;
+      await chat.save();
+    }
+
+    // ================= 🔍 RETRIEVE =================
+    const relevantChunks = await retrieveFromChroma(collectionName, content);
+
+    if (!relevantChunks || relevantChunks.length === 0) {
       return res.json({
         success: false,
         message: "No relevant content found in the document.",
       });
     }
 
-    
-    const context = relevantChunks.join("\n\n---\n\n");
+    // ================= 🧠 BUILD CONTEXT =================
+    const context = relevantChunks
+      .map(
+        (c) =>
+          `[Source: ${c.source || "unknown"}, Page: ${c.page}]\n${c.text}`
+      )
+      .join("\n\n---\n\n");
 
+    // ================= 💬 MESSAGES =================
     const messages = [
       {
         role: "system",
-        content: `You are a helpful assistant that answers questions based on the document context provided below.
-Prioritize the document context when answering. Only use web search if the question cannot be answered from the context.
-If the answer is not in the context and cannot be found via search, say "I couldn't find that in the document."
+        content: `You are a helpful assistant.
+
+Answer ONLY using the provided document context.
+If answer is not in context, say:
+"I couldn't find that in the document."
 
 --- DOCUMENT CONTEXT ---
 ${context}
 --- END CONTEXT ---`,
       },
-      // Include previous chat history for multi-turn RAG conversations
+
       ...chat.messages.map((m) => ({
-        role:    m.role,
+        role: m.role,
         content: m.content,
       })),
-      // Current user question
+
       {
-        role:    "user",
+        role: "user",
         content: content,
       },
     ];
 
-    // Step 4: Get answer from your Groq-powered assistant 
+    // ================= 🤖 LLM =================
     const assistantMessage = await getAssistantMessage(messages);
-    const answer = assistantMessage.content?.trim() || "No answer generated.";
+    const answer =
+      assistantMessage?.content?.trim() || "No answer generated.";
 
-    // Step 5: Persist both turns 
+    // ================= 💾 SAVE =================
     chat.messages.push(
-      { role: "user",      content,        isRag: true },
+      { role: "user", content, isRag: true },
       { role: "assistant", content: answer, isRag: true }
     );
+
     await chat.save();
 
-    //  Step 6: Deduct credit 
-    user.credits = User.findByIdAndUpdate(userId, { $inc: { credits: -5 } }, { after: true });
-    await user.save();
+    // ================= 💰 FIXED CREDIT DEDUCTION =================
+    const updatedUser = await User.findByIdAndUpdate(userId, { $inc: { credits: -1 } }, { after: true });
 
-    //  Optional: cleanup temp PDF 
-     // fs.unlinkSync(filePath);
-
-    // Optional: cleanup Chroma collection 
-     // await deleteCollection(collectionName);
+    // ================= 🧹 OPTIONAL CLEANUP =================
+    // fs.unlinkSync(filePath); // remove temp file
 
     return res.json({
       success: true,
       message: answer,
+      sources: relevantChunks,
+      user: updatedUser, // 🔥 send sources to frontend
       chat,
-      user: { credits: user.credits },
     });
-
   } catch (error) {
     console.error("[ragController] askRagQuestion:", error);
     return res.json({ success: false, message: error.message });

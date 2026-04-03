@@ -1,16 +1,22 @@
 import fs from "fs";
 import path from "path";
 
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import { createRequire } from "module";
+import Tesseract from "tesseract.js";
+
 import { pipeline } from "@huggingface/transformers";
-import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { ChromaClient } from "chromadb";
 
 // ================= CONFIG =================
 const CHUNK_SIZE = 500;
 const CHUNK_OVERLAP = 100;
-const TOP_K_RESULTS = 2;
+const TOP_K_RESULTS = 3;
 const EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2";
+
+
+
 
 // ================= EMBEDDING =================
 let embedder = null;
@@ -24,14 +30,116 @@ const getEmbedder = async () => {
   return embedder;
 };
 
-export const embedText = async (text) => {
+/*export const embedBatch = async (texts) => {
   const embed = await getEmbedder();
-  const output = await embed(text, {
+
+  const outputs = await embed(texts, {
     pooling: "mean",
     normalize: true,
   });
 
-  return Array.from(output.data);
+  return outputs.map(e => Array.from(e.data));
+};*/
+
+export const embedBatch = async (texts) => {
+  const embed = await getEmbedder();
+
+  const outputs = await embed(texts, {
+    pooling: "mean",
+    normalize: true,
+  });
+
+ // if output array return as it is , otherwise covert single output to array (for backward compatibility)
+  if (Array.isArray(outputs)) {
+    return outputs.map(e =>
+      Array.isArray(e) ? e : Array.from(e.data || e)
+    );
+  }
+
+  // single output case
+  return [Array.from(outputs.data || outputs)];
+};
+
+// ================= OCR =================
+const extractTextWithOCR = async (filePath) => {
+  ;
+
+  const { data } = await Tesseract.recognize(filePath, "eng", {
+    logger: (m) => console.log("[OCR]", m.status),
+  });
+
+  return data.text;
+};
+
+// ================= PDF LOADER =================
+export const loadPdf = async (filePath) => {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`PDF not found: ${filePath}`);
+  }
+
+ 
+
+  // ===== Try pdfjs =====
+  try {
+    const data = new Uint8Array(fs.readFileSync(filePath));
+    const pdf = await pdfjsLib.getDocument({ data }).promise; // binary to text extraction
+
+    let docs = [];
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+
+      const text = content.items
+        .map(item => item.str)
+        .filter(Boolean)
+        .join(" ");
+
+      if (text.trim().length > 0) {
+        docs.push({
+          pageContent: text,
+          metadata: { loc: { pageNumber: i } },
+        });
+      }
+    }
+
+    if (docs.length > 0) {
+    return docs;
+    }
+
+    console.warn("⚠️ Empty PDF → switching to OCR");
+
+  } catch (err) {
+    console.warn("⚠️ pdfjs failed:", err.message);
+  }
+
+  // ===== OCR Fallback =====
+  const text = await extractTextWithOCR(filePath);
+
+  if (!text || text.trim().length === 0) {
+    throw new Error("OCR failed: No text found");
+  }
+
+  return [
+    {
+      pageContent: text,
+      metadata: { loc: { pageNumber: 1 } },
+    },
+  ];
+};
+
+// ================= CHUNKING =================
+export const chunkDocuments = async (rawDocs) => {
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: CHUNK_SIZE,
+    chunkOverlap: CHUNK_OVERLAP,
+    separators: ["\n\n", "\n", ".", " ", ""],
+  });
+
+  const chunks = await splitter.splitDocuments(rawDocs);
+
+  
+  return chunks;
 };
 
 // ================= CHROMA =================
@@ -53,49 +161,9 @@ const getChromaClient = () => {
   return chromaClient;
 };
 
-// ================= PDF LOADER =================
-export const loadPdf = async (filePath) => {
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`PDF not found: ${filePath}`);
-  }
 
-  console.log(`[RAG] Loading: ${path.basename(filePath)}`);
 
-  try {
-    const loader = new PDFLoader(filePath);
-    const rawDocs = await loader.load();
-
-    const validDocs = rawDocs.filter(
-      (doc) => doc.pageContent && doc.pageContent.trim().length > 0
-    );
-
-    if (validDocs.length > 0) {
-      console.log(`✅ PDFLoader worked (${validDocs.length} pages)`);
-      return validDocs;
-    }
-  } catch (err) {
-    console.warn("⚠️ PDFLoader failed:", err.message);
-  }
-
-  // fallback error
-  throw new Error("Failed to load PDF or empty content");
-};
-
-// ================= CHUNKING =================
-export const chunkDocuments = async (rawDocs) => {
-  const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: CHUNK_SIZE,
-    chunkOverlap: CHUNK_OVERLAP,
-  });
-
-  const chunks = await splitter.splitDocuments(rawDocs);
-  console.log(`[RAG] Created ${chunks.length} chunks`);
-
-  return chunks;
-};
-
-// ================= STORE =================
-export const storeInChroma = async (chunks, collectionName) => {
+export const storeInChroma = async (chunks, collectionName, fileName) => {
   const client = getChromaClient();
 
   const collection = await client.getOrCreateCollection({
@@ -104,18 +172,46 @@ export const storeInChroma = async (chunks, collectionName) => {
     embeddingFunction: null,
   });
 
-  console.log("[RAG] Generating embeddings...");
+  
 
-  // ⚡ parallel embedding (can optimize later with batching)
-  const embeddings = await Promise.all(
-    chunks.map((chunk) => embedText(chunk.pageContent))
-  );
+  const validDocs = [];
+  const embeddings = [];
 
-  const ids = chunks.map((_, i) => `chunk-${i}`);
-  const documents = chunks.map((c) => c.pageContent);
-  const metadatas = chunks.map((c, i) => ({
-    page: c.metadata?.loc?.pageNumber ?? i,
+  for (let i = 0; i < chunks.length; i++) {
+    const text = chunks[i].pageContent;
+
+    try {
+      const [embedding] = await embedBatch([text]);
+
+      // ✅ skip bad embeddings
+      if (!embedding || embedding.length === 0) continue;
+
+      validDocs.push({
+        text,
+        page: chunks[i].metadata?.loc?.pageNumber ?? i,
+      });
+
+      embeddings.push(embedding);
+
+    } catch (err) {
+      console.warn("⚠️ Skipping chunk:", i);
+    }
+  }
+
+  // 🔥 Now everything is aligned
+  const ids = validDocs.map((_, i) => `${fileName}-chunk-${i}`);
+  const documents = validDocs.map(d => d.text);
+  const metadatas = validDocs.map(d => ({
+    page: d.page,
+    source: fileName,
   }));
+
+  if (
+    ids.length !== embeddings.length ||
+    ids.length !== documents.length
+  ) {
+    throw new Error("Data mismatch before Chroma insert");
+  }
 
   await collection.upsert({
     ids,
@@ -124,7 +220,7 @@ export const storeInChroma = async (chunks, collectionName) => {
     metadatas,
   });
 
-  console.log(`[RAG] Stored ${chunks.length} chunks in "${collectionName}"`);
+  
 
   return collection;
 };
@@ -138,23 +234,30 @@ export const retrieveFromChroma = async (collectionName, query) => {
     embeddingFunction: null,
   });
 
-  const queryEmbedding = await embedText(query);
+  const [queryEmbedding] = await embedBatch([query]);
 
   const results = await collection.query({
     queryEmbeddings: [queryEmbedding],
     nResults: TOP_K_RESULTS,
   });
 
-  const chunks = results.documents?.[0] ?? [];
-  return chunks;
+  const docs = results.documents?.[0] ?? [];
+  const metas = results.metadatas?.[0] ?? [];
+
+  return docs.map((text, i) => ({
+    text,
+    source: metas[i]?.source,
+    page: metas[i]?.page,
+  }));
 };
+
 
 // ================= DELETE =================
 export const deleteCollection = async (collectionName) => {
   try {
     const client = getChromaClient();
     await client.deleteCollection({ name: collectionName });
-    console.log(`[RAG] Deleted collection: ${collectionName}`);
+    
   } catch (err) {
     console.warn("⚠️ Delete failed:", err.message);
   }
@@ -162,8 +265,12 @@ export const deleteCollection = async (collectionName) => {
 
 // ================= BUILD PIPELINE =================
 export const buildChromaCollection = async (filePath, collectionName) => {
+  const fileName = path.basename(filePath);
+
   const rawDocs = await loadPdf(filePath);
   const chunks = await chunkDocuments(rawDocs);
-  await storeInChroma(chunks, collectionName);
+
+  await storeInChroma(chunks, collectionName, fileName);
+
   return collectionName;
 };
